@@ -25,7 +25,8 @@ class JobController extends Controller
     {
         $data = $request->validate([
             'title'          => 'required|string',
-            'category_id'    => 'required|exists:categories,id',
+            'category_id'    => 'nullable|exists:categories,id', // <-- made nullable
+            'category_name'  => 'nullable|string', // <-- NEW: custom category
             'description'    => 'required|string',
             'salary'         => 'required|numeric|min:0',
             'rate_type'      => 'required|in:Daily,Hourly,Per Service,Monthly',
@@ -39,7 +40,15 @@ class JobController extends Controller
             'notify_nearby'  => 'boolean',
         ]);
 
-        $job = Job::create([...$data, 'employer_id' => $request->user()->id]);
+        // Ensure either category_id or category_name is provided
+        if (empty($data['category_id']) && empty($data['category_name'])) {
+            return response()->json(['message' => 'Category is required.'], 422);
+        }
+
+        $job = Job::create([
+            ...$data,
+            'employer_id' => $request->user()->id
+        ]);
 
         return response()->json($job->load('category'), 201);
     }
@@ -56,12 +65,14 @@ class JobController extends Controller
     {
         $this->authorize('update', $job);
         $data = $request->validate([
-            'title'       => 'sometimes|string',
-            'description' => 'sometimes|string',
-            'salary'      => 'sometimes|numeric',
-            'rate_type'   => 'sometimes|in:Daily,Hourly,Per Service,Monthly',
-            'negotiable'  => 'sometimes|boolean',
-            'status'      => 'sometimes|in:open,filled,closed',
+            'title'          => 'sometimes|string',
+            'description'    => 'sometimes|string',
+            'salary'         => 'sometimes|numeric',
+            'rate_type'      => 'sometimes|in:Daily,Hourly,Per Service,Monthly',
+            'negotiable'     => 'sometimes|boolean',
+            'status'         => 'sometimes|in:open,filled,closed',
+            'category_id'    => 'sometimes|exists:categories,id',
+            'category_name'  => 'sometimes|string', // <-- NEW: allow updating custom category
         ]);
         $job->update($data);
         return response()->json($job);

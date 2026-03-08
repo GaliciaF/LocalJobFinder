@@ -43,8 +43,10 @@ import MyRate from './pages/worker/MyRate'
 import WorkerFileReport from './pages/worker/FileReport'
 import WorkerSecurity from './pages/worker/Security'
 
+// ── Added: handle redirect after reload with loading check ──
 function RoleRedirect() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+  if (loading) return <div className="p-10 text-gray-400">Loading...</div>
   if (!user) return <Navigate to="/login" replace />
   return <Navigate to={`/${user.role}`} replace />
 }

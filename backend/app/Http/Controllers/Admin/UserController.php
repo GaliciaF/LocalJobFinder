@@ -11,13 +11,25 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $users = User::query()
-            ->when($request->role,   fn($q) => $q->where('role', $request->role))
+            ->when($request->role, fn($q) => $q->where('role', $request->role))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->search, fn($q) => $q->where('name', 'like', "%{$request->search}%"))
+            ->with(['workerProfile','employerProfile'])
             ->withCount(['reviewsReceived as review_count'])
             ->withAvg('reviewsReceived as avg_rating', 'rating')
             ->latest()
             ->paginate(20);
+
+        // Fill missing phone/email from profiles
+        $users->getCollection()->transform(function ($user) {
+            if (!$user->phone) {
+                $user->phone = $user->workerProfile->phone ?? $user->employerProfile->phone ?? null;
+            }
+            if (!$user->email) {
+                $user->email = $user->workerProfile->email ?? $user->employerProfile->email ?? null;
+            }
+            return $user;
+        });
 
         return response()->json($users);
     }
@@ -25,7 +37,15 @@ class UserController extends Controller
     // GET /api/admin/users/{id}
     public function show(User $user)
     {
-        return response()->json($user->load(['employerProfile','workerProfile','reviewsReceived']));
+        $user->load(['employerProfile','workerProfile','reviewsReceived']);
+        if (!$user->phone) {
+            $user->phone = $user->workerProfile->phone ?? $user->employerProfile->phone ?? null;
+        }
+        if (!$user->email) {
+            $user->email = $user->workerProfile->email ?? $user->employerProfile->email ?? null;
+        }
+
+        return response()->json($user);
     }
 
     // PATCH /api/admin/users/{id}/status

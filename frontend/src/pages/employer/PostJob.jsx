@@ -9,6 +9,7 @@ export default function PostJob() {
   const [form, setForm] = useState({
     title: '',
     category_id: '',
+    custom_category: '',
     description: '',
     salary: '',
     rate_type: 'Daily',
@@ -37,7 +38,7 @@ export default function PostJob() {
     'San Isidro', 'San Vicente', 'Santo Tomas', 'Soom', 'Tagum Norte', 'Tagum Sur'
   ]
 
-  // Placeholder puroks per barangay (replace with real ones when available)
+  // Placeholder puroks per barangay
   const puroksByBarangay = {
     'Banlasan': ['Purok 1', 'Purok 2', 'Purok 3'],
     'Bongbong': ['Purok 1', 'Purok 2', 'Purok 3'],
@@ -66,7 +67,8 @@ export default function PostJob() {
   const handleSubmit = async () => {
     setErr('')
     if (!form.title.trim()) return setErr('Job title is required.')
-    if (!form.category_id) return setErr('Category is required.')
+    if (!form.category_id && !(form.custom_category && form.custom_category.trim()))
+      return setErr('Category is required.')
     if (!form.salary || isNaN(parseFloat(form.salary))) return setErr('Salary must be a number.')
     if (!form.barangay) return setErr('Barangay is required.')
     if (!form.purok.trim()) return setErr('Purok is required.')
@@ -75,7 +77,8 @@ export default function PostJob() {
     try {
       await api.post('/employer/jobs', {
         ...form,
-        category_id: Number(form.category_id),
+        category_id: form.category_id ? Number(form.category_id) : null,
+        category_name: form.custom_category?.trim() || undefined,
         salary: parseFloat(form.salary)
       })
       navigate('/employer/jobs')
@@ -105,19 +108,37 @@ export default function PostJob() {
             <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="e.g. Plumber Needed" style={inp} />
           </div>
 
-          {/* Category */}
+          {/* Category (dropdown + custom input) */}
           <div>
             <label style={lbl}>Category</label>
             <select
               value={form.category_id}
-              onChange={e => setForm(f => ({ ...f, category_id: Number(e.target.value) }))}
-              style={inp}
+              onChange={e => {
+                const val = e.target.value
+                if (val === 'custom') {
+                  setForm(f => ({ ...f, category_id: '', custom_category: '' }))
+                } else {
+                  setForm(f => ({ ...f, category_id: Number(val), custom_category: undefined }))
+                }
+              }}
+              style={{ ...inp, marginBottom:'6px' }}
             >
               <option value="">Select category</option>
               {categories.map(c => (
                 <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
               ))}
+              <option value="custom">Other (type below)</option>
             </select>
+
+            {form.category_id === '' && form.custom_category !== undefined && (
+              <input
+                type="text"
+                placeholder="Or type your category here"
+                value={form.custom_category || ''}
+                onChange={e => setForm(f => ({ ...f, custom_category: e.target.value }))}
+                style={inp}
+              />
+            )}
           </div>
 
           {/* Rate Type */}
