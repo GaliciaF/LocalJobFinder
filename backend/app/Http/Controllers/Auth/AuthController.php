@@ -94,10 +94,14 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out.']);
     }
 
-    public function me(Request $request)
-    {
-        return response()->json($request->user()->load(
-            $request->user()->role === 'employer' ? 'employerProfile' : 'workerProfile'
-        ));
-    }
+   public function me(Request $request)
+{
+    $user = $request->user();
+    $relations = match($user->role) {
+        'employer' => ['employerProfile'],
+        'worker'   => ['workerProfile'],
+        default    => [],
+    };
+    return response()->json($user->load($relations));
+}
 }

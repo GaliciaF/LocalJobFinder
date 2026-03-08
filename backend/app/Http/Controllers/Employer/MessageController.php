@@ -5,7 +5,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Message;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class MessageController extends Controller
 {
@@ -46,7 +45,7 @@ class MessageController extends Controller
         return response()->json($messages);
     }
 
-    // POST /api/employer/messages
+    // POST /api/employer/messages — send a message
     public function send(Request $request)
     {
         $data = $request->validate([
@@ -61,5 +60,30 @@ class MessageController extends Controller
         ]);
 
         return response()->json($message, 201);
+    }
+
+    // NEW — POST /api/employer/messages/start
+    public function start(Request $request)
+    {
+        $workerId = $request->input('worker_id');
+        $employerId = $request->user()->id;
+
+        if (!$workerId || !User::find($workerId)) {
+            return response()->json(['message' => 'Invalid worker ID'], 422);
+        }
+
+        // Check if there is already a conversation
+        $existing = Message::where(function($q) use ($employerId, $workerId) {
+            $q->where('sender_id', $employerId)->where('receiver_id', $workerId);
+        })->orWhere(function($q) use ($employerId, $workerId) {
+            $q->where('sender_id', $workerId)->where('receiver_id', $employerId);
+        })->first();
+
+        // Return existing conversation or a placeholder
+        return response()->json([
+            'conversation_exists' => (bool)$existing,
+            'worker_id' => $workerId,
+            'employer_id' => $employerId
+        ]);
     }
 }

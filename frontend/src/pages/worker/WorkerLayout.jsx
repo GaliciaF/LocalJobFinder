@@ -1,26 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-
-const nav=[
-{to:'dashboard',icon:'🏠',label:'Dashboard'},
-{to:'profile',icon:'👷',label:'My Profile'},
-{to:'schedule',icon:'📅',label:'My Schedule'},
-{to:'salary',icon:'💰',label:'Salary & Rate'},
-{to:'browse-job',icon:'🗺️',label:'Browse Jobs'},
-{to:'applications',icon:'✉️',label:'My Applications'},
-{to:'messages',icon:'💬',label:'Messages',badge:'2'},
-{to:'notifications',icon:'🔔',label:'Notifications',badge:'3'},
-{to:'reviews',icon:'⭐',label:'Rate & Review'},
-{to:'report',icon:'🚨',label:'Report User'},
-{to:'security',icon:'🔒',label:'Security & Privacy'},
-]
+import api from '../../api/axios'
 
 const c={
 primary:'#16a34a',
 primary2:'#22c55e',
 bg:'#f6faf7',
-surface:'#eaf4ec', // premium darker green sidebar
+surface:'#eaf4ec',
 border:'#d4e5d7',
 text:'#0f172a',
 muted:'#64748b',
@@ -31,20 +18,74 @@ topbarBg:'rgba(246,250,247,.85)',
 }
 
 export default function WorkerLayout(){
+
 const{user,logout}=useAuth()
 const navigate=useNavigate()
+
 const[open,setOpen]=useState(false)
+
+const[messageCount,setMessageCount]=useState(0)
+const[notificationCount,setNotificationCount]=useState(0)
+
 const handleLogout=async()=>{await logout();navigate('/login')}
+
 const initials=user?.name?.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'WK'
+
+
+/* ===============================
+   FETCH SYSTEM COUNTS
+================================ */
+useEffect(()=>{
+const fetchCounts=async()=>{
+try{
+
+const msgRes=await api.get('/worker/messages/unread-count')
+const notifRes=await api.get('/worker/notifications/unread-count')
+
+setMessageCount(msgRes.data.count || 0)
+setNotificationCount(notifRes.data.count || 0)
+
+}catch(err){
+console.log('Sidebar counts error',err)
+}
+}
+
+fetchCounts()
+
+const interval=setInterval(fetchCounts,10000) // auto refresh every 10s
+return()=>clearInterval(interval)
+
+},[])
+
+
+/* ===============================
+   NAVIGATION
+================================ */
+const nav=[
+{to:'dashboard',icon:'🏠',label:'Dashboard'},
+{to:'profile',icon:'👷',label:'My Profile'},
+{to:'schedule',icon:'📅',label:'My Schedule'},
+{to:'salary',icon:'💰',label:'Salary & Rate'},
+{to:'browse-job',icon:'🗺️',label:'Browse Jobs'},
+{to:'applications',icon:'✉️',label:'My Applications'},
+{to:'messages',icon:'💬',label:'Messages',badge:messageCount},
+{to:'notifications',icon:'🔔',label:'Notifications',badge:notificationCount},
+{to:'reviews',icon:'⭐',label:'Rate & Review'},
+{to:'report',icon:'🚨',label:'Report User'},
+{to:'security',icon:'🔒',label:'Security & Privacy'},
+]
+
 
 return(
 <div style={{display:'flex',minHeight:'100vh',background:c.bg,color:c.text,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
+
 {open&&<div onClick={()=>setOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.35)',zIndex:190}}/>}
 
 <nav style={{position:'fixed',top:0,left:0,bottom:0,width:'260px',background:c.surface,borderRight:`1px solid ${c.border}`,display:'flex',flexDirection:'column',zIndex:200,boxShadow:'4px 0 20px rgba(0,0,0,.04)'}}>
 
 <div style={{background:c.headerGrad,padding:'22px 18px',position:'relative',overflow:'hidden'}}>
 <div style={{position:'absolute',right:'-30px',top:'-30px',width:'120px',height:'120px',borderRadius:'50%',background:'rgba(255,255,255,.08)'}}/>
+
 <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'16px',position:'relative',zIndex:1}}>
 <div style={{width:'38px',height:'38px',background:'rgba(255,255,255,.2)',borderRadius:'12px',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:'16px',color:'#fff',border:'1.5px solid rgba(255,255,255,.3)'}}>L</div>
 <div>
@@ -64,13 +105,38 @@ return(
 </div>
 
 <div style={{flex:1,overflowY:'auto',padding:'12px'}}>
+
 {nav.map(item=>(
-<NavLink key={item.to} to={item.to} style={({isActive})=>({display:'flex',alignItems:'center',gap:'12px',padding:'9px 14px',borderRadius:'12px',fontSize:'13px',fontWeight:isActive?600:500,textDecoration:'none',margin:'3px 0',transition:'all .2s ease',color:isActive?c.activeText:c.muted,background:isActive?c.activeBg:'transparent',borderRight:isActive?`3px solid ${c.primary}`:'3px solid transparent'})}>
+<NavLink key={item.to} to={item.to}
+style={({isActive})=>({
+display:'flex',
+alignItems:'center',
+gap:'12px',
+padding:'9px 14px',
+borderRadius:'12px',
+fontSize:'13px',
+fontWeight:isActive?600:500,
+textDecoration:'none',
+margin:'3px 0',
+transition:'all .2s ease',
+color:isActive?c.activeText:c.muted,
+background:isActive?c.activeBg:'transparent',
+borderRight:isActive?`3px solid ${c.primary}`:'3px solid transparent'
+})}
+>
+
 <span style={{fontSize:'15px',width:'20px',textAlign:'center'}}>{item.icon}</span>
 <span style={{flex:1}}>{item.label}</span>
-{item.badge&&<span style={{background:c.primary,color:'#fff',fontSize:'9px',fontWeight:700,borderRadius:'20px',padding:'2px 7px'}}>{item.badge}</span>}
+
+{item.badge>0&&(
+<span style={{background:c.primary,color:'#fff',fontSize:'9px',fontWeight:700,borderRadius:'20px',padding:'2px 7px'}}>
+{item.badge}
+</span>
+)}
+
 </NavLink>
 ))}
+
 </div>
 
 <div style={{padding:'14px',borderTop:`1px solid ${c.border}`}}>
@@ -94,7 +160,11 @@ return(
 <span style={{fontSize:'13px',fontWeight:600,color:c.text}}>{user?.name}</span>
 </div>
 </div>
-<div style={{flex:1}}><Outlet/></div>
+
+<div style={{flex:1}}>
+<Outlet/>
+</div>
+
 </div>
 
 </div>
